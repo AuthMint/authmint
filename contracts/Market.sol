@@ -14,7 +14,7 @@ import "hardhat/console.sol";
  * implemented. The item tokenization is responsibility of the ERC721 contract
  * which should encode any item details.
  */
-contract Classifieds {
+contract Market {
     event TradeStatusChange(uint256 ad, bytes32 status);
 
     IERC20 public currencyToken;

@@ -10,13 +10,12 @@ contract MockNFT is ERC721URIStorage {
     constructor() ERC721("MockNFT", "MFT") public {
     }
 
-    function addItem(address player, string memory tokenURI) public returns (uint256) {
+    function addItem(address player, string memory tokenURI) public  returns (uint256) {
         _tokenIds.increment();
 
         uint256 newItemId = _tokenIds.current();
         _mint(player, newItemId);
         _setTokenURI(newItemId, tokenURI);
-
         return newItemId;
     }
 }
