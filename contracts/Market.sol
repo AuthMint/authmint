@@ -1,8 +1,11 @@
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol"; // changed import
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
 import "hardhat/console.sol";
 
 
@@ -14,13 +17,18 @@ import "hardhat/console.sol";
  * implemented. The item tokenization is responsibility of the ERC721 contract
  * which should encode any item details.
  */
-contract Market {
+contract Market is ERC721URIStorage {
     event TradeStatusChange(uint256 ad, bytes32 status);
 
     IERC20 public currencyToken;
     IERC721 public itemToken;
 
+
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+
     struct Trade {
+        address nft;
         address poster;
         uint256 item;
         uint256 price;
@@ -31,7 +39,7 @@ contract Market {
 
     uint256 tradeCounter;
 
-    constructor (address _currencyTokenAddress, address _itemTokenAddress)
+    constructor (address _currencyTokenAddress, address _itemTokenAddress) ERC721("AuthMint License", "AML")
     public
 
     {
@@ -48,10 +56,10 @@ contract Market {
     public
     virtual
     view
-    returns (address, uint256, uint256, bytes32)
+    returns (address, address, uint256, uint256, bytes32)
     {
         Trade memory trade = trades[_trade];
-        return (trade.poster, trade.item, trade.price, trade.status);
+        return (trade.nft, trade.poster, trade.item, trade.price, trade.status);
     }
 
     /**
@@ -59,7 +67,7 @@ contract Market {
      * @param _item The id for the item to trade.
      * @param _price The amount of currency for which to trade the item.
      */
-    function openTrade(uint256 _item, uint256 _price)
+    function openTrade(address nftAddress, uint256 _item, uint256 _price)
     public
     virtual
     {
@@ -67,6 +75,7 @@ contract Market {
 
         itemToken.transferFrom(msg.sender, address(this), _item);
         trades[tradeCounter] = Trade({
+            nft : nftAddress,
             poster : msg.sender,
             item : _item,
             price : _price,
@@ -75,6 +84,9 @@ contract Market {
         tradeCounter += 1;
         emit TradeStatusChange(tradeCounter - 1, "Open");
     }
+
+
+
 
     /**
      * @dev Executes a trade. Must have approved this contract to transfer the
@@ -92,6 +104,22 @@ contract Market {
         itemToken.transferFrom(address(this), msg.sender, trade.item);
         trades[_trade].status = "Executed";
         emit TradeStatusChange(_trade, "Executed");
+    }
+
+    function buyLicense(uint256 _trade)
+    public
+    virtual
+    returns (uint256)
+    {
+        Trade memory trade = trades[_trade];
+        require(trade.status == "Open", "Trade is not Open.");
+
+
+        _tokenIds.increment();
+        uint256 newItemId = _tokenIds.current();
+        _mint(msg.sender, newItemId);
+        _setTokenURI(newItemId, "trade.nft" );
+        return newItemId;
     }
 
     /**
