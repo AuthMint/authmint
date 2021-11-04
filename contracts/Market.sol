@@ -1,10 +1,16 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol"; // changed import
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "hardhat/console.sol";
 
@@ -13,131 +19,170 @@ import "hardhat/console.sol";
  * @title Classifieds
  * @notice Implements the classifieds board market. The market will be governed
  * by an ERC20 token as currency, and an ERC721 token that represents the
- * ownership of the items being traded. Only ads for selling items are
+ * ownership of the items being offerd. Only ads for selling items are
  * implemented. The item tokenization is responsibility of the ERC721 contract
  * which should encode any item details.
  */
-contract Market is ERC721URIStorage {
-    event TradeStatusChange(uint256 ad, bytes32 status);
+contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
+    event OfferStatusChange(uint256 ad, bytes32 status);
 
     IERC20 public currencyToken;
     IERC721 public itemToken;
 
 
     using Counters for Counters.Counter;
-    Counters.Counter private _tokenIds;
+    Counters.Counter private _licenseIds;
 
-    struct Trade {
+    struct Original {
         address nft;
-        address poster;
         uint256 item;
+        address owner;
+    }
+
+    struct Offer {
+        Original original;
         uint256 price;
         bytes32 status; // Open, Executed, Cancelled
     }
 
-    mapping(uint256 => Trade) public trades;
 
-    uint256 tradeCounter;
+    mapping(uint256 => Offer) public offers;
 
-    constructor (address _currencyTokenAddress, address _itemTokenAddress) ERC721("AuthMint License", "AML")
+    uint256 offerCounter;
+
+    constructor (address _currencyTokenAddress) ERC721("AuthMint License", "AML")
     public
 
     {
         currencyToken = IERC20(_currencyTokenAddress);
-        itemToken = IERC721(_itemTokenAddress);
-        tradeCounter = 0;
+        offerCounter = 0;
+
+    }
+
+    function getOffers(uint256 from, uint256 size)
+    public
+    view
+    returns (Offer[]  memory)
+    {
+
+        Offer[] memory someOffers = new Offer[](size);
+        for (uint i = from; i < size; i++) {
+            Offer storage offer = offers[i];
+            someOffers[i] = offer;
+        }
+        return (someOffers);
     }
 
     /**
-     * @dev Returns the details for a trade.
-     * @param _trade The id for the trade.
+     * @dev Returns the details for a offer.
+     * @param _offer The id for the offer.
      */
-    function getTrade(uint256 _trade)
+    function getOffer(uint256 _offer)
     public
     virtual
     view
-    returns (address, address, uint256, uint256, bytes32)
+    returns (Original memory, uint256, bytes32)
     {
-        Trade memory trade = trades[_trade];
-        return (trade.nft, trade.poster, trade.item, trade.price, trade.status);
+        Offer memory offer = offers[_offer];
+        return (offer.original, offer.price, offer.status);
     }
 
+
+
     /**
-     * @dev Opens a new trade. Puts _item in escrow.
-     * @param _item The id for the item to trade.
-     * @param _price The amount of currency for which to trade the item.
+     * @dev Opens a new offer. Puts _item in escrow.
+     * @param _item The id for the item to offer.
+     * @param _price The amount of currency for which to offer the item.
      */
-    function openTrade(address nftAddress, uint256 _item, uint256 _price)
+    function openOffer(address nftAddress, uint256 _item, uint256 _price)
     public
     virtual
     {
         console.log("Sender %s", msg.sender);
+        IERC721(nftAddress).transferFrom(msg.sender, address(this), _item);
 
-        itemToken.transferFrom(msg.sender, address(this), _item);
-        trades[tradeCounter] = Trade({
+        Original memory _original = Original({
             nft : nftAddress,
-            poster : msg.sender,
             item : _item,
+            owner : msg.sender
+            });
+
+        offers[offerCounter] = Offer({
+            original : _original,
             price : _price,
             status : "Open"
             });
-        tradeCounter += 1;
-        emit TradeStatusChange(tradeCounter - 1, "Open");
+        offerCounter += 1;
+        emit OfferStatusChange(offerCounter - 1, "Open");
     }
 
 
-
-
-    /**
-     * @dev Executes a trade. Must have approved this contract to transfer the
-     * amount of currency specified to the poster. Transfers ownership of the
-     * item to the filler.
-     * @param _trade The id of an existing trade
-     */
-    function executeTrade(uint256 _trade)
-    public
-    virtual
-    {
-        Trade memory trade = trades[_trade];
-        require(trade.status == "Open", "Trade is not Open.");
-        currencyToken.transferFrom(msg.sender, trade.poster, trade.price);
-        itemToken.transferFrom(address(this), msg.sender, trade.item);
-        trades[_trade].status = "Executed";
-        emit TradeStatusChange(_trade, "Executed");
-    }
-
-    function buyLicense(uint256 _trade)
+    function buyLicense(uint256 _offer)
     public
     virtual
     returns (uint256)
     {
-        Trade memory trade = trades[_trade];
-        require(trade.status == "Open", "Trade is not Open.");
+        Offer memory offer = offers[_offer];
+        require(offer.status == "Open", "Offer is not Open.");
 
 
-        _tokenIds.increment();
-        uint256 newItemId = _tokenIds.current();
+        currencyToken.transferFrom(msg.sender, offer.original.owner, offer.price);
+
+        _licenseIds.increment();
+        uint256 newItemId = _licenseIds.current();
         _mint(msg.sender, newItemId);
-        _setTokenURI(newItemId, "trade.nft" );
+        _setTokenURI(newItemId,  Strings.toString(_offer));
+
         return newItemId;
     }
 
     /**
-     * @dev Cancels a trade by the poster.
-     * @param _trade The trade to be cancelled.
+     * @dev Cancels a offer by the owner.
+     * @param _offer The offer to be cancelled.
      */
-    function cancelTrade(uint256 _trade)
+    function cancelOffer(uint256 _offer)
     public
     virtual
     {
-        Trade memory trade = trades[_trade];
+        Offer memory offer = offers[_offer];
         require(
-            msg.sender == trade.poster,
-            "Trade can be cancelled only by poster."
+            msg.sender == offer.original.owner,
+            "Offer can be cancelled only by owner."
         );
-        require(trade.status == "Open", "Trade is not Open.");
-        itemToken.transferFrom(address(this), trade.poster, trade.item);
-        trades[_trade].status = "Cancelled";
-        emit TradeStatusChange(_trade, "Cancelled");
+        require(offer.status == "Open", "Offer is not Open.");
+        itemToken.transferFrom(address(this), offer.original.owner, offer.original.item);
+        offers[_offer].status = "Cancelled";
+        emit OfferStatusChange(_offer, "Cancelled");
+    }
+
+
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+    internal
+    override(ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+    public
+    view
+    override(ERC721, ERC721URIStorage)
+    returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    override(ERC721, ERC721Enumerable)
+    returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }
