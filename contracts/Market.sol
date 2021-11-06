@@ -27,35 +27,36 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     event OfferStatusChange(uint256 ad, bytes32 status);
 
     IERC20 public currencyToken;
-    IERC721 public itemToken;
 
 
     using Counters for Counters.Counter;
-    Counters.Counter private _licenseIds;
+    Counters.Counter private _licenseCounter;
+    Counters.Counter private _offerCounter;
+    Counters.Counter private _propertyCounter;
 
-    struct Original {
+    struct Property {
         address nft;
         uint256 item;
         address owner;
     }
 
     struct Offer {
-        Original original;
+        uint256 propertyId;
         uint256 price;
         bytes32 status; // Open, Executed, Cancelled
     }
 
 
+    mapping(uint256 => Property) public properties;
     mapping(uint256 => Offer) public offers;
 
-    uint256 offerCounter;
+
 
     constructor (address _currencyTokenAddress) ERC721("AuthMint License", "AML")
     public
 
     {
         currencyToken = IERC20(_currencyTokenAddress);
-        offerCounter = 0;
 
     }
 
@@ -81,12 +82,41 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     public
     virtual
     view
-    returns (Original memory, uint256, bytes32)
+    returns (Property memory, uint256, bytes32)
     {
         Offer memory offer = offers[_offer];
-        return (offer.original, offer.price, offer.status);
+        return (offer.property, offer.price, offer.status);
     }
 
+    function deposit(address nftAddress, uint256 _item)
+    public
+    returns (uint256)
+    {
+        IERC721(nftAddress).transferFrom(msg.sender, address(this), _item);
+        Property memory _property = Property({
+            nft : nftAddress,
+            item : _item,
+            owner : msg.sender
+            });
+
+        uint256 newPropertyId = _propertyCounter.increment();
+        properties[newPropertyId] = _property;
+        return newPropertyId;
+    }
+
+
+    function withdraw(uint256 _propertyId)
+    public
+    {
+        Property _property = properties[_propertyId];
+        if (_property.owner == msg.sender) {
+            IERC721(_property.nft).transferFrom(address(this), msg.sender, _property.item);
+
+        } else {
+            //TODO throw exception
+        }
+
+    }
 
 
     /**
@@ -99,39 +129,49 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     virtual
     {
         console.log("Sender %s", msg.sender);
-        IERC721(nftAddress).transferFrom(msg.sender, address(this), _item);
+        uint256 _propertyId = deposit(address(this), _item);
 
-        Original memory _original = Original({
-            nft : nftAddress,
-            item : _item,
-            owner : msg.sender
-            });
 
-        offers[offerCounter] = Offer({
-            original : _original,
+        uint256 newOfferId = _offerCounter.increment();
+        offers[newOfferId] = Offer({
+            propertyId : _propertyId,
             price : _price,
             status : "Open"
             });
-        offerCounter += 1;
-        emit OfferStatusChange(offerCounter - 1, "Open");
+        emit OfferStatusChange(newOfferId, "Open");
+    }
+
+    function openOffer(address _propertyId, uint256 _price)
+    public
+    virtual
+    {
+        console.log("Sender %s", msg.sender);
+        deposit(address(this), _item);
+
+        uint256 newOfferId = _offerCounter.increment();
+
+        offers[newOfferId] = Offer({
+            propertyId : _propertyId,
+            price : _price,
+            status : "Open"
+            });
+        emit OfferStatusChange(newOfferId, "Open");
     }
 
 
-    function buyLicense(uint256 _offer)
+    function mintLicense(uint256 _offer)
     public
     virtual
     returns (uint256)
     {
         Offer memory offer = offers[_offer];
         require(offer.status == "Open", "Offer is not Open.");
+        currencyToken.transferFrom(msg.sender, offer.property.owner, offer.price);
 
-
-        currencyToken.transferFrom(msg.sender, offer.original.owner, offer.price);
-
-        _licenseIds.increment();
-        uint256 newItemId = _licenseIds.current();
+        _licenseCounter.increment();
+        uint256 newItemId = _licenseCounter.current();
         _mint(msg.sender, newItemId);
-        _setTokenURI(newItemId,  Strings.toString(_offer));
+        _setTokenURI(newItemId, Strings.toString(_offer));
 
         return newItemId;
     }
@@ -146,15 +186,16 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     {
         Offer memory offer = offers[_offer];
         require(
-            msg.sender == offer.original.owner,
+            msg.sender == offer.property.owner,
             "Offer can be cancelled only by owner."
         );
         require(offer.status == "Open", "Offer is not Open.");
-        itemToken.transferFrom(address(this), offer.original.owner, offer.original.item);
+
+        //TODO: withdraw nft
+        //        itemToken.transferFrom(address(this), offer.property.owner, offer.property.item);
         offers[_offer].status = "Cancelled";
         emit OfferStatusChange(_offer, "Cancelled");
     }
-
 
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)

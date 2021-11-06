@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol"; // changed import
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract MockNFT is ERC721URIStorage {
+contract Original is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    constructor() ERC721("MockNFT", "MFT") public {
+    constructor() ERC721("AuthMint Original Token", "AOT") public {
     }
 
     function addItem(address player, string memory tokenURI) public  returns (uint256) {

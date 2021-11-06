@@ -11,7 +11,7 @@ import "hardhat/console.sol";
 
 
 // This is the main building block for smart contracts.
-contract Token is ERC20 {
+contract USDT is ERC20 {
     // Some string type variables to identify the token.
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
         // Mint 100 tokens to msg.sender
