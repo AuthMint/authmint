@@ -123,9 +123,6 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     public
     virtual
     {
-        console.log("Sender %s", msg.sender);
-        deposit(address(this), _item);
-
         uint256 newOfferId = _offerCounter.increment();
 
         offers[newOfferId] = Offer({
