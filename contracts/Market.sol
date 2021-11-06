@@ -119,28 +119,6 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     }
 
 
-    /**
-     * @dev Opens a new offer. Puts _item in escrow.
-     * @param _item The id for the item to offer.
-     * @param _price The amount of currency for which to offer the item.
-     */
-    function openOffer(address nftAddress, uint256 _item, uint256 _price)
-    public
-    virtual
-    {
-        console.log("Sender %s", msg.sender);
-        uint256 _propertyId = deposit(address(this), _item);
-
-
-        uint256 newOfferId = _offerCounter.increment();
-        offers[newOfferId] = Offer({
-            propertyId : _propertyId,
-            price : _price,
-            status : "Open"
-            });
-        emit OfferStatusChange(newOfferId, "Open");
-    }
-
     function openOffer(address _propertyId, uint256 _price)
     public
     virtual
@@ -156,6 +134,20 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
             status : "Open"
             });
         emit OfferStatusChange(newOfferId, "Open");
+    }
+
+    /**
+     * @dev Opens a new offer. Puts _item in escrow.
+     * @param _item The id for the item to offer.
+     * @param _price The amount of currency for which to offer the item.
+     */
+    function openOffer(address nftAddress, uint256 _item, uint256 _price)
+    public
+    virtual
+    {
+        console.log("Sender %s", msg.sender);
+        uint256 _propertyId = deposit(address(this), _item);
+        openOffer(_propertyId, _price);
     }
 
 
