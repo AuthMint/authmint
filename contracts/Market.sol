@@ -59,6 +59,21 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
 
     }
 
+    function getProperties(uint256 from, uint256 size)
+    public
+    view
+    returns (Property[] memory)
+    {
+
+        Property[] memory someProperties = new Property[](size);
+
+        for (uint i = from; i < size; i++) {
+            Property memory property = properties[i];
+            someOffers[i] = property;
+        }
+        return (someProperties);
+    }
+
     function getOffers(uint256 from, uint256 size)
     public
     view
@@ -69,6 +84,8 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
         Property[] memory someProperties = new Property[](size);
 
         for (uint i = from; i < size; i++) {
+
+            //TODO: memory or storage?
             Offer storage offer = offers[i];
             someOffers[i] = offer;
             someProperties[i] = properties[offer.propertyId];
