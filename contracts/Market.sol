@@ -78,13 +78,13 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
 
     /**
      * @dev Returns the details for a offer.
-     * @param _offer The id for the offer.
+     * @param _offerId The id for the offer.
      */
     function getOffer(uint256 _offerId)
     public
     virtual
     view
-    returns (Property memory, uint256, bytes32)
+    returns (Offer memory, Property memory)
     {
         Offer memory offer = offers[_offerId];
         Property memory property = properties[offer.propertyId];
@@ -103,7 +103,8 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
             owner : msg.sender
             });
 
-        uint256 newPropertyId = _propertyCounter.increment();
+        _propertyCounter.increment();
+        uint256 newPropertyId = _propertyCounter.current();
         properties[newPropertyId] = _property;
         return newPropertyId;
     }
@@ -112,7 +113,7 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     function withdraw(uint256 _propertyId)
     public
     {
-        Property _property = properties[_propertyId];
+        Property memory _property = properties[_propertyId];
         if (_property.owner == msg.sender) {
             IERC721(_property.nft).transferFrom(address(this), msg.sender, _property.item);
 
@@ -123,11 +124,12 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     }
 
 
-    function openOffer(address _propertyId, uint256 _price)
+    function openOffer(uint256 _propertyId, uint256 _price)
     public
     virtual
     {
-        uint256 newOfferId = _offerCounter.increment();
+        _offerCounter.increment();
+        uint256 newOfferId = _offerCounter.current();
 
         offers[newOfferId] = Offer({
             propertyId : _propertyId,
@@ -159,7 +161,8 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     {
         Offer memory offer = offers[_offer];
         require(offer.status == "Open", "Offer is not Open.");
-        currencyToken.transferFrom(msg.sender, offer.property.owner, offer.price);
+        Property memory property = properties[offer.propertyId];
+        currencyToken.transferFrom(msg.sender, property.owner, offer.price);
 
         _licenseCounter.increment();
         uint256 newItemId = _licenseCounter.current();
@@ -178,8 +181,9 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     virtual
     {
         Offer memory offer = offers[_offer];
+        Property memory property = properties[offer.propertyId];
         require(
-            msg.sender == offer.property.owner,
+            msg.sender == property.owner,
             "Offer can be cancelled only by owner."
         );
         require(offer.status == "Open", "Offer is not Open.");
