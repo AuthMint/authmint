@@ -7,7 +7,7 @@ contract Original is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    constructor() ERC721("AuthMint Original Token", "AOT") public {
+    constructor() ERC721("AuthMint Original Token", "AMO") public {
     }
 
     function addItem(address player, string memory tokenURI) public  returns (uint256) {
