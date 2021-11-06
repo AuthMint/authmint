@@ -54,7 +54,6 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
 
     constructor (address _currencyTokenAddress) ERC721("AuthMint License", "AML")
     public
-
     {
         currencyToken = IERC20(_currencyTokenAddress);
 
@@ -63,30 +62,35 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
     function getOffers(uint256 from, uint256 size)
     public
     view
-    returns (Offer[]  memory)
+    returns (Offer[]  memory, Property[] memory)
     {
 
         Offer[] memory someOffers = new Offer[](size);
+        Property[] memory someProperties = new Property[](size);
+
         for (uint i = from; i < size; i++) {
             Offer storage offer = offers[i];
             someOffers[i] = offer;
+            someProperties[i] = properties[offer.propertyId];
         }
-        return (someOffers);
+        return (someOffers, someProperties);
     }
 
     /**
      * @dev Returns the details for a offer.
      * @param _offer The id for the offer.
      */
-    function getOffer(uint256 _offer)
+    function getOffer(uint256 _offerId)
     public
     virtual
     view
     returns (Property memory, uint256, bytes32)
     {
-        Offer memory offer = offers[_offer];
-        return (offer.property, offer.price, offer.status);
+        Offer memory offer = offers[_offerId];
+        Property memory property = properties[offer.propertyId];
+        return (offer, property);
     }
+
 
     function deposit(address nftAddress, uint256 _item)
     public
