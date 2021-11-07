@@ -69,7 +69,7 @@ contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
 
         for (uint i = from; i < size; i++) {
             Property memory property = properties[i];
-            someOffers[i] = property;
+            someProperties[i] = property;
         }
         return (someProperties);
     }
