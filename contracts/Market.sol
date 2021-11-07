@@ -23,7 +23,7 @@ import "hardhat/console.sol";
  * implemented. The item tokenization is responsibility of the ERC721 contract
  * which should encode any item details.
  */
-contract Market is ERC721, ERC721Enumerable, ERC721URIStorage {
+contract Market is  ERC721Enumerable, ERC721URIStorage {
     event OfferStatusChange(uint256 ad, bytes32 status);
 
     IERC20 public currencyToken;
