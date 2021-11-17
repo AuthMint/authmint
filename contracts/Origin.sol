@@ -1,16 +1,20 @@
 pragma solidity ^0.8.0;
+
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol"; // changed import
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract Original is ERC721Enumerable, ERC721URIStorage {
+import "hardhat/console.sol";
+
+
+contract Origin is ERC721Enumerable, ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    constructor() ERC721("AuthMint Original Token", "AMO") public {
+    constructor() ERC721("AuthMint Origin Token", "AMO") public {
     }
 
-    function mintOriginal( string memory tokenURI) public  returns (uint256) {
+    function mintOrigin(string memory tokenURI) public returns (uint256) {
         _tokenIds.increment();
 
         uint256 newItemId = _tokenIds.current();
@@ -19,6 +23,24 @@ contract Original is ERC721Enumerable, ERC721URIStorage {
         return newItemId;
     }
 
+    //TODO: consider removing this and use loop from client instead
+    function getOrigins(uint256 from, uint256 size)
+    public
+    view
+    returns (string[] memory)
+    {
+
+        string[] memory someOrigins = new string[](size);
+        console.log('size', size);
+
+        for (uint i = from; i < from + size; i++) {
+            string memory original = tokenURI(i);
+            console.log('i', i);
+            console.log('original', original);
+            someOrigins[i - from] = original;
+        }
+        return (someOrigins);
+    }
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
     internal
